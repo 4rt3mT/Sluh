@@ -313,23 +313,25 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
   const pause = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
+	  saveCurrentProgress();
     }
-  }, []);
+  }, [saveCurrentProgress]);
   
-  const nextTrackInternal = useCallback(() => { 
+  const nextTrackInternal = useCallback(() => {
+    saveCurrentProgress(); // Добавлено сохранение прогресса
     const currentBook = currentBookRef.current;
     if (!currentBook) return;
     if (currentTrackIndexRef.current < currentBook.tracks.length - 1) {
         desiredSeekTimeRef.current = 0;
-        setCurrentTime(0); // Reset UI time optimistically
+        setCurrentTime(0);
         setCurrentTrackIndex(prev => prev + 1);
     } else {
-        pause();
+        pause(); // Вызывает обновленный pause, который сохраняет прогресс
         if (globalSettings.sleepTimerDuration === SleepTimerValue.EndOfChapter) {
             setGlobalSleepTimerContext(null);
         }
     }
-  }, [pause, globalSettings.sleepTimerDuration, setGlobalSleepTimerContext]);
+}, [pause, globalSettings.sleepTimerDuration, setGlobalSleepTimerContext, saveCurrentProgress]); // Обновлены зависимости
 
 
   useEffect(() => {
@@ -378,47 +380,10 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
 		}
 	};
 	
-	// Вызов saveCurrentProgress при паузе:
-	const pause = useCallback(() => {
-		if (audioRef.current) {
-		  audioRef.current.pause();
-		  saveCurrentProgress(); // Сохраняем прогресс при явной паузе
-		}
-	}, [saveCurrentProgress]);
-
-	// Вызов saveCurrentProgress при переключении треков:
-	const nextTrackInternal = useCallback(() => { 
-		saveCurrentProgress(); // Сохраняем перед переключением
-		const currentBook = currentBookRef.current;
-		if (!currentBook) return;
-		if (currentTrackIndexRef.current < currentBook.tracks.length - 1) {
-			desiredSeekTimeRef.current = 0;
-			setCurrentTime(0);
-			setCurrentTrackIndex(prev => prev + 1);
-		} else {
-			// Достигнут конец последнего трека
-			if (audioRef.current) audioRef.current.pause(); // Останавливаем воспроизведение
-			setIsPlaying(false); // Обновляем состояние isPlaying
-			if (globalSettings.sleepTimerDuration === SleepTimerValue.EndOfChapter) {
-				setGlobalSleepTimerContext(null);
-			}
-			// Можно также сбросить время на 0, если нужно начинать сначала при повторном Play
-			// desiredSeekTimeRef.current = 0; 
-			// setCurrentTime(0);
-		}
-	}, [pause, globalSettings.sleepTimerDuration, setGlobalSleepTimerContext, saveCurrentProgress]);
 	
-	const previousTrackInternal = useCallback(() => { 
-		saveCurrentProgress(); // Сохраняем перед переключением
-		const currentBook = currentBookRef.current;
-		if (currentBook && currentTrackIndexRef.current > 0) {
-		  desiredSeekTimeRef.current = 0; 
-		  setCurrentTime(0); 
-		  setCurrentTrackIndex(prev => prev - 1);
-		} else if (currentBook && currentTrackIndexRef.current === 0) {
-		  seekTo(0); 
-		}
-	}, [seekTo, saveCurrentProgress]);
+
+	
+	
 	
     const handleEndedEvent = () => nextTrackInternal();
     const handlePlayEvent = () => setIsPlaying(true);
@@ -487,6 +452,7 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
   }, [duration]);
 
   const previousTrackInternal = useCallback(() => { 
+	saveCurrentProgress();
     const currentBook = currentBookRef.current;
     if (currentBook && currentTrackIndexRef.current > 0) {
       desiredSeekTimeRef.current = 0; 
@@ -495,7 +461,7 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
     } else if (currentBook && currentTrackIndexRef.current === 0) {
       seekTo(0); 
     }
-  }, [seekTo]);
+  }, [seekTo,saveCurrentProgress]);
 
 
   useEffect(() => {

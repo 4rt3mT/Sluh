@@ -42,6 +42,7 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
   
   const [effectiveSpeedSettings, setEffectiveSpeedSettings] = useState<DynamicSpeedSettings>(globalSettings.defaultDynamicSpeed);
   const [totalPlayedTimeInBook, setTotalPlayedTimeInBook] = useState(0);
+  const totalPlayedTimeInBookRef = useRef(0); // Ref to hold the latest totalPlayedTimeInBook for the interval
 	
   const prevTrackKeyRef = useRef<string | null>(null);
 
@@ -78,6 +79,11 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
   useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
   useEffect(() => { currentBookRef.current = book; }, [book]);
   useEffect(() => { currentTrackIndexRef.current = currentTrackIndex; }, [currentTrackIndex]);
+
+  // Keep the ref updated with the latest totalPlayedTimeInBook
+  useEffect(() => {
+   totalPlayedTimeInBookRef.current = totalPlayedTimeInBook;
+  }, [totalPlayedTimeInBook]);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -129,11 +135,9 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
         };
         setEffectiveSpeedSettings(mergedSettings);
 
-        if (mergedSettings.isEnabled) {
-            setPlaybackSpeed(mergedSettings.initialSpeed);
-        } else {
-            setPlaybackSpeed(mergedSettings.initialSpeed); // When dynamic is off, initialSpeed effectively stores the manual speed
-        }
+        if (!mergedSettings.isEnabled || (mergedSettings.isEnabled && !isPlayingRef.current)) {
+			setPlaybackSpeed(mergedSettings.initialSpeed);
+		}
 
       } else {
         setBook(null); 
@@ -516,30 +520,32 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
       dynamicSpeedIntervalRef.current = null;
     }
     if (isPlaying && book && effectiveSpeedSettings.isEnabled && book.totalDuration > 0 && audioRef.current) {
-      dynamicSpeedIntervalRef.current = window.setInterval(() => {
-        // Читаем актуальную скорость напрямую из audio элемента или используем initialSpeed как базу
-        const currentAudioElementPlaybackRate = audioRef.current?.playbackRate || effectiveSpeedSettings.initialSpeed;
-
+      // Interval will use playbackSpeed and effectiveSpeedSettings from the closure of this effect run.
+      // It will use totalPlayedTimeInBookRef.current for the most up-to-date progress.
+	  dynamicSpeedIntervalRef.current = window.setInterval(() => {
+        
+        const currentTotalPlayed = totalPlayedTimeInBookRef.current;
+		
         const { initialSpeed, maxSpeed, rampUpTargetPercentage } = effectiveSpeedSettings;
         const rampUpDuration = book.totalDuration * (rampUpTargetPercentage / 100);
         
         let newCalculatedSpeed = initialSpeed; // По умолчанию начинаем с начальной скорости
 
         if (rampUpDuration > 0) {
-            if (totalPlayedTimeInBook < rampUpDuration) {
-                const progressInRamp = totalPlayedTimeInBook / rampUpDuration;
+            if (currentTotalPlayed < rampUpDuration) {
+               const progressInRamp = currentTotalPlayed / rampUpDuration;
                 const speedRange = maxSpeed - initialSpeed;
                 newCalculatedSpeed = initialSpeed + (speedRange * progressInRamp);
             } else {
                 newCalculatedSpeed = maxSpeed; // Достигли или превысили время для ramp-up
             }
-        } else {
-             // Если rampUpDuration 0 (или цель 0%), сразу используем maxSpeed, если уже играем, иначе initialSpeed.
-             // Однако, логичнее всегда начинать с initialSpeed и переходить к maxSpeed, если rampUpTargetPercentage = 0.
-             // Для простоты, если нет ramp up, остаемся на initial или сразу max в зависимости от totalPlayedTimeInBook
-             newCalculatedSpeed = (totalPlayedTimeInBook > 0 && rampUpTargetPercentage === 0) ? maxSpeed : initialSpeed;
-             if (rampUpTargetPercentage > 0 && totalPlayedTimeInBook >= rampUpDuration) newCalculatedSpeed = maxSpeed; // Явное условие для >0%
-        }
+        } else { // This block is entered if rampUpDuration <= 0 (e.g., book.totalDuration is 0 or rampUpTargetPercentage is 0)
+            if (rampUpTargetPercentage === 0) { // User explicitly set ramp-up to 0%, meaning instant max speed
+                newCalculatedSpeed = maxSpeed;
+            } else { // rampUpTargetPercentage > 0 but book.totalDuration was 0 or invalid. Default to initialSpeed.
+                newCalculatedSpeed = initialSpeed;
+            }
+         }
         
         newCalculatedSpeed = Math.min(Math.max(newCalculatedSpeed, initialSpeed), maxSpeed);
 
@@ -557,8 +563,7 @@ export const useAudioPlayer = ({ bookId }: UseAudioPlayerProps) => {
     };
   // Убрали playbackSpeed из зависимостей, чтобы избежать цикла через него.
   // totalPlayedTimeInBook обновляется часто, это нормально для этого эффекта.
-}, [isPlaying, book, effectiveSpeedSettings, totalPlayedTimeInBook, /* Добавил audioRef.current.playbackRate косвенно через currentAudioElementPlaybackRate, но т.к. это ref, его нет в deps. */]);
-
+}, [isPlaying, book, effectiveSpeedSettings]); // REMOVED totalPlayedTimeInBook from dependencies
 
 // Отдельный useEffect для применения playbackSpeed к audio элементу.
 // Это гарантирует, что playbackRate обновляется только когда состояние playbackSpeed действительно изменилось.

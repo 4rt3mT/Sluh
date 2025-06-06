@@ -18,10 +18,17 @@ const SettingsScreen: React.FC = () => {
     setLocalSettings(prev => ({ ...prev, theme: event.target.value as GlobalSettings['theme'] }));
   };
 
-  const handleDynamicSpeedChange = <K extends keyof DynamicSpeedSettings,>(
+  const handleDynamicSpeedChange = <K extends keyof DynamicSpeedSettings>(
     field: K,
-    value: DynamicSpeedSettings[K]
+    value: DynamicSpeedSettings[K] // value comes from parseFloat/parseInt or e.target.checked
   ) => {
+    // For numeric fields, if value is NaN (e.g., from failed parseFloat),
+    // we prevent updating the state to avoid errors with .toFixed() etc.
+    // The input field will effectively revert to its last valid numeric state.
+    if (typeof localSettings.defaultDynamicSpeed[field] === 'number' && isNaN(Number(value))) {
+      return; // Do not update state if new value is NaN for a number field
+    }
+
     setLocalSettings(prev => ({
       ...prev,
       defaultDynamicSpeed: {
@@ -40,9 +47,6 @@ const SettingsScreen: React.FC = () => {
   
   const handleResetToDefaults = () => {
     setLocalSettings(DEFAULT_GLOBAL_SETTINGS);
-    // Optionally directly update context if immediate reset is desired without save button
-    // updateTheme(DEFAULT_GLOBAL_SETTINGS.theme);
-    // updateDefaultDynamicSpeed(DEFAULT_GLOBAL_SETTINGS.defaultDynamicSpeed);
   };
 
   const selectInputClasses = "mt-1 block w-full pl-3 pr-10 py-2 text-base sm:text-sm leading-tight border border-secondary-300 dark:border-secondary-600 rounded-md appearance-none focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-60 disabled:cursor-not-allowed";
@@ -92,31 +96,58 @@ const SettingsScreen: React.FC = () => {
 
             <div>
               <label htmlFor="defaultInitialSpeed" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">Initial Speed ({localSettings.defaultDynamicSpeed.initialSpeed.toFixed(2)}x)</label>
-              <select id="defaultInitialSpeed" value={localSettings.defaultDynamicSpeed.initialSpeed} onChange={(e) => handleDynamicSpeedChange('initialSpeed', parseFloat(e.target.value))} className={selectInputClasses} disabled={!localSettings.defaultDynamicSpeed.isEnabled}>
-                {INITIAL_SPEED_OPTIONS.map(s => <option key={s} value={s}>{s.toFixed(2)}x</option>)}
-              </select>
+              <input
+                type="number"
+                id="defaultInitialSpeed"
+                value={localSettings.defaultDynamicSpeed.initialSpeed}
+                onChange={(e) => handleDynamicSpeedChange('initialSpeed', parseFloat(e.target.value))}
+                className={selectInputClasses}
+                disabled={!localSettings.defaultDynamicSpeed.isEnabled}
+                step="0.01"
+              />
             </div>
 
             <div>
               <label htmlFor="defaultMaxSpeed" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">Maximum Speed ({localSettings.defaultDynamicSpeed.maxSpeed.toFixed(2)}x)</label>
-              <select id="defaultMaxSpeed" value={localSettings.defaultDynamicSpeed.maxSpeed} onChange={(e) => handleDynamicSpeedChange('maxSpeed', parseFloat(e.target.value))} className={selectInputClasses} disabled={!localSettings.defaultDynamicSpeed.isEnabled}>
-                {MAX_SPEED_OPTIONS.map(s => <option key={s} value={s}>{s.toFixed(2)}x</option>)}
-              </select>
+              <input
+                type="number"
+                id="defaultMaxSpeed"
+                value={localSettings.defaultDynamicSpeed.maxSpeed}
+                onChange={(e) => handleDynamicSpeedChange('maxSpeed', parseFloat(e.target.value))}
+                className={selectInputClasses}
+                disabled={!localSettings.defaultDynamicSpeed.isEnabled}
+                step="0.01"
+              />
             </div>
 
             <div>
               <label htmlFor="defaultRampUpTarget" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">Ramp-up Target ({localSettings.defaultDynamicSpeed.rampUpTargetPercentage}%)</label>
-               <select id="defaultRampUpTarget" value={localSettings.defaultDynamicSpeed.rampUpTargetPercentage} onChange={(e) => handleDynamicSpeedChange('rampUpTargetPercentage', parseInt(e.target.value))} className={selectInputClasses} disabled={!localSettings.defaultDynamicSpeed.isEnabled}>
-                {RAMP_UP_PERCENTAGE_OPTIONS.map(p => <option key={p} value={p}>{p}%</option>)}
-              </select>
+              <input
+                type="number"
+                id="defaultRampUpTarget"
+                value={localSettings.defaultDynamicSpeed.rampUpTargetPercentage}
+                onChange={(e) => handleDynamicSpeedChange('rampUpTargetPercentage', parseInt(e.target.value, 10))}
+                className={selectInputClasses}
+                disabled={!localSettings.defaultDynamicSpeed.isEnabled}
+                step="1"
+                min="0" // Optional: add min/max for better UX
+                max="100"
+              />
               <p className="text-xs text-secondary-500 dark:text-secondary-400 mt-1">Percentage of book duration to reach max speed.</p>
             </div>
 
             <div>
               <label htmlFor="defaultUpdateInterval" className="block text-sm font-medium text-secondary-700 dark:text-secondary-300">Speed Update Interval ({localSettings.defaultDynamicSpeed.updateInterval}s)</label>
-              <select id="defaultUpdateInterval" value={localSettings.defaultDynamicSpeed.updateInterval} onChange={(e) => handleDynamicSpeedChange('updateInterval', parseInt(e.target.value))} className={selectInputClasses} disabled={!localSettings.defaultDynamicSpeed.isEnabled}>
-                {UPDATE_INTERVAL_OPTIONS.map(i => <option key={i} value={i}>{i}s</option>)}
-              </select>
+              <input
+                type="number"
+                id="defaultUpdateInterval"
+                value={localSettings.defaultDynamicSpeed.updateInterval}
+                onChange={(e) => handleDynamicSpeedChange('updateInterval', parseInt(e.target.value, 10))}
+                className={selectInputClasses}
+                disabled={!localSettings.defaultDynamicSpeed.isEnabled}
+                step="1"
+                min="1" // Optional: sensible min
+              />
             </div>
           </div>
         </section>

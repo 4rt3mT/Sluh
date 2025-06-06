@@ -59,9 +59,13 @@ const PlayerScreen: React.FC = () => {
 
   useEffect(() => {
     if (book) {
+		const baseSettings = globalSettings.defaultDynamicSpeed; // Current global defaults
         setLocalDynamicSettings({
-            ...DEFAULT_GLOBAL_SETTINGS.defaultDynamicSpeed, // Base defaults
-            ...(book.userSettings || {}) // Override with book specifics
+			isEnabled: book.userSettings?.isEnabled ?? baseSettings.isEnabled,
+            initialSpeed: book.userSettings?.initialSpeed ?? baseSettings.initialSpeed,
+            maxSpeed: book.userSettings?.maxSpeed ?? baseSettings.maxSpeed,
+            rampUpTargetPercentage: book.userSettings?.rampUpTargetPercentage ?? baseSettings.rampUpTargetPercentage,
+            updateInterval: book.userSettings?.updateInterval ?? baseSettings.updateInterval,
         });
     } else {
         setLocalDynamicSettings(globalSettings.defaultDynamicSpeed); // Fallback to global if no book
@@ -95,23 +99,16 @@ const PlayerScreen: React.FC = () => {
 
 
   const handleDynamicSettingsChange = <K extends keyof DynamicSpeedSettings,>(field: K, value: DynamicSpeedSettings[K]) => {
-    setLocalDynamicSettings(prev => ({ ...prev, [field]: value }));
+    // Prevent NaN for numeric fields, similar to SettingsScreen
+    if (typeof localDynamicSettings[field] === 'number' && isNaN(Number(value))) {
+      return; 
+    }
+	setLocalDynamicSettings(prev => ({ ...prev, [field]: value }));
   };
 
   const saveDynamicSettings = () => {
-    if (bookId) {
+    if (bookId && book) {
       updateBookSettings(bookId, localDynamicSettings); 
-      // Manually trigger updates in useAudioPlayer hook if settings changed
-      // This is a bit complex as direct hook state update from here isn't clean.
-      // The hook itself re-reads book settings on book change.
-      // For immediate effect:
-      if(effectiveSpeedSettings.isEnabled !== localDynamicSettings.isEnabled) {
-        toggleDynamicSpeed(); // This will use the new settings from context/book.userSettings
-      }
-      // If dynamic speed is enabled, set playback to initial speed
-      if(localDynamicSettings.isEnabled) {
-        changeSpeed(localDynamicSettings.initialSpeed); // This also updates effectiveSpeedSettings
-      }
     }
     setIsDynamicSettingsModalOpen(false);
   };
@@ -267,28 +264,55 @@ const PlayerScreen: React.FC = () => {
                 </div>
                 <div>
                     <label htmlFor="initialSpeed" className="block text-sm font-medium">Initial Speed ({localDynamicSettings.initialSpeed.toFixed(2)}x)</label>
-                    <select id="initialSpeed" value={localDynamicSettings.initialSpeed} onChange={(e) => handleDynamicSettingsChange('initialSpeed', parseFloat(e.target.value))} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!localDynamicSettings.isEnabled}>
-                        {INITIAL_SPEED_OPTIONS.map(s => <option key={`init-${s}`} value={s}>{s.toFixed(2)}x</option>)}
-                    </select>
+                    <input
+                         type="number"
+                         id="initialSpeed"
+                         value={localDynamicSettings.initialSpeed}
+                         onChange={(e) => handleDynamicSettingsChange('initialSpeed', parseFloat(e.target.value))}
+                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                         disabled={!localDynamicSettings.isEnabled}
+                         step="0.01"
+                     />
                 </div>
                 <div>
                     <label htmlFor="maxSpeed" className="block text-sm font-medium">Maximum Speed ({localDynamicSettings.maxSpeed.toFixed(2)}x)</label>
-                     <select id="maxSpeed" value={localDynamicSettings.maxSpeed} onChange={(e) => handleDynamicSettingsChange('maxSpeed', parseFloat(e.target.value))} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!localDynamicSettings.isEnabled}>
-                        {MAX_SPEED_OPTIONS.map(s => <option key={`max-${s}`} value={s}>{s.toFixed(2)}x</option>)}
-                    </select>
+                    <input
+                         type="number"
+                         id="maxSpeed"
+                         value={localDynamicSettings.maxSpeed}
+                         onChange={(e) => handleDynamicSettingsChange('maxSpeed', parseFloat(e.target.value))}
+                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                         disabled={!localDynamicSettings.isEnabled}
+                         step="0.01"
+                     /> 
                 </div>
                 <div>
                     <label htmlFor="rampUpTargetPercentage" className="block text-sm font-medium">Ramp-up Target ({localDynamicSettings.rampUpTargetPercentage}%)</label>
-                    <select id="rampUpTargetPercentage" value={localDynamicSettings.rampUpTargetPercentage} onChange={(e) => handleDynamicSettingsChange('rampUpTargetPercentage', parseInt(e.target.value))} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!localDynamicSettings.isEnabled}>
-                        {RAMP_UP_PERCENTAGE_OPTIONS.map(p => <option key={`ramp-${p}`} value={p}>{p}%</option>)}
-                    </select>
+                    <input
+                         type="number"
+                         id="rampUpTargetPercentage"
+                         value={localDynamicSettings.rampUpTargetPercentage}
+                         onChange={(e) => handleDynamicSettingsChange('rampUpTargetPercentage', parseInt(e.target.value, 10))}
+                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                         disabled={!localDynamicSettings.isEnabled}
+                         step="1"
+                         min="0"
+                         max="100"
+                     />
                     <p className="text-xs text-secondary-500 dark:text-secondary-400 mt-1">Percentage of book duration to reach max speed.</p>
                 </div>
                 <div>
                     <label htmlFor="updateInterval" className="block text-sm font-medium">Speed Update Interval ({localDynamicSettings.updateInterval}s)</label>
-                    <select id="updateInterval" value={localDynamicSettings.updateInterval} onChange={(e) => handleDynamicSettingsChange('updateInterval', parseInt(e.target.value))} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed" disabled={!localDynamicSettings.isEnabled}>
-                        {UPDATE_INTERVAL_OPTIONS.map(i => <option key={`interval-${i}`} value={i}>{i}s</option>)}
-                    </select>
+                    <input
+                         type="number"
+                         id="updateInterval"
+                         value={localDynamicSettings.updateInterval}
+                         onChange={(e) => handleDynamicSettingsChange('updateInterval', parseInt(e.target.value, 10))}
+                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-secondary-300 dark:border-secondary-600 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md bg-white dark:bg-secondary-700 text-secondary-900 dark:text-secondary-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                         disabled={!localDynamicSettings.isEnabled}
+                         step="1"
+                         min="1"
+                     />
                 </div>
                 <Button onClick={saveDynamicSettings} className="w-full mt-6">Save Settings for this Book</Button>
             </div>

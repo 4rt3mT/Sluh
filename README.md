@@ -37,26 +37,32 @@
  1.  **Clone the repository:**
      
 bash
+    ```
     git clone <repository_url>
+    ```
+    ```
     cd neurosluh-audiobook-player # Or the name of the cloned folder
-     
+    ``` 
  2.  **Install dependencies:**
      
 bash
+    ```
     npm install # or yarn install
-     
+    ``` 
  3.  **Start the development server:**
      
 bash
+    ```
     npm run dev # or yarn dev
-     
+    ``` 
 This will typically open the application in your default web browser at a local address (e.g., `http://localhost:5173/`).
  
  4.  **Build for production (Optional):**
      
 bash
+     ```
      npm run build # or yarn build
-     
+     ```
 This will create a `dist` folder with the production-ready files. You can then serve these files using any static file server or deploy them to a static hosting service (though local file access features (`webkitdirectory`) might have limitations depending on deployment environment and browser security policies).
  
  ## How to Use

@@ -1,0 +1,10 @@
+
+import React from 'react';
+
+const FastForwardIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path fillRule="evenodd" d="M14.47 2.47a.75.75 0 0 0 0 1.06L19.19 8.25H9a6.75 6.75 0 0 0 0 13.5h3a.75.75 0 0 0 0-1.5H9a5.25 5.25 0 1 1 0-10.5h10.19l-4.72 4.72a.75.75 0 1 0 1.06 1.06l6-6a.75.75 0 0 0 0-1.06l-6-6a.75.75 0 0 0-1.06 0Z" clipRule="evenodd" />
+    <text x="50%" y="60%" dominantBaseline="middle" textAnchor="middle" fontSize="8" fontWeight="bold" fill="currentColor" className="dark:fill-white fill-black">30</text>
+  </svg>
+);
+export default FastForwardIcon;

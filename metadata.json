@@ -1,0 +1,5 @@
+{
+  "name": "NeuroSluh Audiobook Player",
+  "description": "A web-based audiobook player with dynamic speed-up features to train high-speed information perception. Users can add books from local folders, manage their library, and customize playback speed.",
+  "requestFramePermissions": []
+}
